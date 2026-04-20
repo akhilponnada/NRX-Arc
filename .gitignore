@@ -1,0 +1,46 @@
+# Rust
+/target/
+**/*.rs.bk
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+
+# Maturin
+/dist/
+/wheels/
+
+# Model checkpoints
+*.safetensors
+*.bin
+*.pt
+/checkpoints/
+/runs/
+/wandb/
+
+# Data
+/data/
+*.parquet
+*.arrow
+*.jsonl.gz
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Logs
+*.log
+nohup.out
+
+# CUDA artifacts
+*.cubin
+*.ptx.cache
