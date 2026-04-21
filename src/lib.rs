@@ -4,6 +4,7 @@ use pyo3::wrap_pyfunction;
 mod tensor;
 mod tape;
 mod ops;
+mod device;
 
 #[pyfunction]
 fn clear_tape() { tape::clear(); }

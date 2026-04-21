@@ -1,6 +1,7 @@
 use pyo3::prelude::*;
 use crate::tensor::Tensor;
-use crate::tape::{self, OpKind, OpRecord, accumulate_grad};
+use crate::tape::{self, OpKind, OpRecord, accumulate_grad, output_grad_cpu, input_data_cpu};
+use crate::device::{device_str, Device, Storage};
 
 // 2D matmul: A (m, k) @ B (k, n) -> C (m, n).
 //
@@ -14,6 +15,21 @@ use crate::tape::{self, OpKind, OpRecord, accumulate_grad};
 // Row-major flat indexing: A[i*k + p], B[p*n + j], C[i*n + j].
 
 pub fn forward(py: Python, a: Bound<'_, Tensor>, b: Bound<'_, Tensor>) -> PyResult<Py<Tensor>> {
+    {
+        let a_dev = a.borrow().storage.device();
+        let b_dev = b.borrow().storage.device();
+        match (a_dev, b_dev) {
+            (Device::Cpu, Device::Cpu) => {}
+            (Device::Cuda, Device::Cuda) => unimplemented!("cuda matmul not yet"),
+            (da, db) => {
+                return Err(pyo3::exceptions::PyRuntimeError::new_err(format!(
+                    "cannot matmul tensors on different devices: {} and {}",
+                    device_str(da), device_str(db)
+                )));
+            }
+        }
+    }
+
     let (out_shape, out_data, m, k, n) = {
         let a_ref = a.borrow();
         let b_ref = b.borrow();
@@ -30,19 +46,21 @@ pub fn forward(py: Python, a: Bound<'_, Tensor>, b: Bound<'_, Tensor>) -> PyResu
             )));
         }
         let n = b_ref.shape[1];
+        let a_data = a_ref.storage.cpu();
+        let b_data = b_ref.storage.cpu();
         let mut data = vec![0.0f32; m * n];
         for i in 0..m {
             for j in 0..n {
                 let mut acc = 0.0f32;
                 for p in 0..k {
-                    acc += a_ref.data[i * k + p] * b_ref.data[p * n + j];
+                    acc += a_data[i * k + p] * b_data[p * n + j];
                 }
                 data[i * n + j] = acc;
             }
         }
         (vec![m, n], data, m, k, n)
     };
-    let output = Py::new(py, Tensor::new(out_shape, out_data))?;
+    let output = Py::new(py, Tensor::from_storage(out_shape, Storage::Cpu(out_data)))?;
     tape::record(OpRecord {
         kind: OpKind::Matmul { m, k, n },
         inputs: vec![a.unbind(), b.unbind()],
@@ -52,10 +70,9 @@ pub fn forward(py: Python, a: Bound<'_, Tensor>, b: Bound<'_, Tensor>) -> PyResu
 }
 
 pub fn backward(py: Python, rec: &OpRecord, m: usize, k: usize, n: usize) -> PyResult<()> {
-    let upstream = rec.output.borrow(py).grad.clone()
-        .expect("matmul backward: missing output grad");          // (m,n)
-    let a_data = rec.inputs[0].borrow(py).data.clone();           // (m,k)
-    let b_data = rec.inputs[1].borrow(py).data.clone();           // (k,n)
+    let upstream = output_grad_cpu(py, &rec.output, "matmul");           // (m,n)
+    let a_data = input_data_cpu(py, &rec.inputs[0], "matmul");           // (m,k)
+    let b_data = input_data_cpu(py, &rec.inputs[1], "matmul");           // (k,n)
 
     // dA[i,p] = sum_j upstream[i,j] * B[p,j]
     let mut da = vec![0.0f32; m * k];
