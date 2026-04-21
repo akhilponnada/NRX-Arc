@@ -158,19 +158,26 @@ impl Tensor {
     /// Bypasses the tape (this is an optimizer step, not part of the forward graph).
     /// CPU-only in Phase 2 step 1; CUDA optimizer step lands once we have CUDA
     /// elementwise ops in place.
-    fn sgd_update_(&mut self, lr: f32) {
+    fn sgd_update_(&mut self, lr: f32) -> PyResult<()> {
+        if self.storage.device() == Device::Cuda {
+            return Err(pyo3::exceptions::PyNotImplementedError::new_err(
+                "cuda sgd_update_ not implemented yet (Phase 2 step 2)"
+            ));
+        }
         let grad_vec = match &self.grad {
-            None => return,
+            None => return Ok(()),
             Some(Storage::Cpu(v)) => v.clone(),
-            Some(Storage::Cuda(_)) => unimplemented!("cuda sgd_update_ not yet"),
+            Some(Storage::Cuda(_)) => {
+                return Err(pyo3::exceptions::PyNotImplementedError::new_err(
+                    "cuda sgd_update_ not implemented yet (Phase 2 step 2)"
+                ));
+            }
         };
-        let data_vec = match &mut self.storage {
-            Storage::Cpu(v) => v,
-            Storage::Cuda(_) => unimplemented!("cuda sgd_update_ not yet"),
-        };
+        let data_vec = self.storage.cpu_mut();
         for (d, gi) in data_vec.iter_mut().zip(grad_vec.iter()) {
             *d -= lr * gi;
         }
+        Ok(())
     }
 }
 

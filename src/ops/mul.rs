@@ -9,7 +9,11 @@ pub fn forward(py: Python, a: Bound<'_, Tensor>, b: Bound<'_, Tensor>) -> PyResu
         let b_dev = b.borrow().storage.device();
         match (a_dev, b_dev) {
             (Device::Cpu, Device::Cpu) => {}
-            (Device::Cuda, Device::Cuda) => unimplemented!("cuda mul not yet"),
+            (Device::Cuda, Device::Cuda) => {
+                return Err(pyo3::exceptions::PyNotImplementedError::new_err(
+                    "cuda mul not implemented yet (Phase 2 step 2)"
+                ));
+            }
             (da, db) => {
                 return Err(pyo3::exceptions::PyRuntimeError::new_err(format!(
                     "cannot multiply tensors on different devices: {} and {}",

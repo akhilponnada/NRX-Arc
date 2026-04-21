@@ -5,7 +5,9 @@ use crate::device::{Device, Storage};
 
 pub fn forward(py: Python, a: Bound<'_, Tensor>) -> PyResult<Py<Tensor>> {
     if a.borrow().storage.device() == Device::Cuda {
-        unimplemented!("cuda sum not yet")
+        return Err(pyo3::exceptions::PyNotImplementedError::new_err(
+            "cuda sum not implemented yet (Phase 2 step 2)"
+        ));
     }
     let (input_numel, total) = {
         let a_ref = a.borrow();

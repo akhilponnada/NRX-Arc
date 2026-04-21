@@ -5,7 +5,9 @@ use crate::device::{Device, Storage};
 
 pub fn forward(py: Python, a: Bound<'_, Tensor>, s: f32) -> PyResult<Py<Tensor>> {
     if a.borrow().storage.device() == Device::Cuda {
-        unimplemented!("cuda scalar_mul not yet")
+        return Err(pyo3::exceptions::PyNotImplementedError::new_err(
+            "cuda scalar_mul not implemented yet (Phase 2 step 2)"
+        ));
     }
     let (out_shape, out_data) = {
         let a_ref = a.borrow();

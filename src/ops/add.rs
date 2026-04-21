@@ -14,7 +14,11 @@ pub fn forward(
         let b_dev = b.borrow().storage.device();
         match (a_dev, b_dev) {
             (Device::Cpu, Device::Cpu) => {}
-            (Device::Cuda, Device::Cuda) => unimplemented!("cuda add not yet"),
+            (Device::Cuda, Device::Cuda) => {
+                return Err(pyo3::exceptions::PyNotImplementedError::new_err(
+                    "cuda add not implemented yet (Phase 2 step 2)"
+                ));
+            }
             (da, db) => {
                 return Err(pyo3::exceptions::PyRuntimeError::new_err(format!(
                     "cannot add tensors on different devices: {} and {}",
